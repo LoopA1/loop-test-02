@@ -1,5 +1,4 @@
 import time
-
 _request_log = {}
 MAX_REQUESTS = 100
 WINDOW_SECONDS = 60

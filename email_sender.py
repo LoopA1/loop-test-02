@@ -3,6 +3,7 @@ import json
 import os
 from email.mime.text import MIMEText
 from user_validator import UserValidator
+import re
 
 SMTP_HOST = "smtp.company.internal"
 SMTP_PORT = 587
@@ -26,6 +27,7 @@ class EmailSender:
         msg['To'] = to
         try:
             server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+            server.starttls()
             server.login(SMTP_USER, self.smtp_pass)
             server.sendmail(SMTP_USER, to, msg.as_string())
             server.quit()

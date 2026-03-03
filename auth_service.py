@@ -6,9 +6,10 @@ import os
 import hashlib
 import secrets
 import string
-from data_cache import CacheManager, cache_key_from_query
+from data_cache import cache_get, cache_set
 from passlib.context import CryptContext
 from user_validator import UserValidator
+import re
 
 DB_PATH = 'auth.db'
 SECRET = os.environ.get('SECRET_KEY')
@@ -19,14 +20,17 @@ logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=['bcrypt'], default='bcrypt')
 
-class UserValidator:
+class AuthService:
+    def __init__(self):
+        self.validator = UserValidator()
+
     def validate_registration(self, data: dict) -> dict:
         results = {}
-        results['username'] = self.validate_username(data.get('username', ''))
-        results['email'] = self.validate_email(data.get('email', ''))
-        results['password'] = self.validate_password(data.get('password', ''))
+        results['username'] = self.validator.validate_username(data.get('username', ''))
+        results['email'] = self.validator.validate_email(data.get('email', ''))
+        results['password'] = self.validator.validate_password(data.get('password', ''))
         if 'role' in data:
-            results['role'] = self.validate_role(data['role'])
+            results['role'] = self.validator.validate_role(data['role'])
         all_valid = all(r['valid'] for r in results.values())
         return {'valid': all_valid, 'fields': results}
 
@@ -58,3 +62,9 @@ class UserValidator:
         if len(password) < 8:
             errors.append('Password must be at least 8 characters')
         return {'valid': len(errors) == 0, 'errors': errors}
+
+    def validate_role(self, role: str) -> dict:
+        allowed_roles = ['user', 'admin', 'moderator', 'superadmin']
+        if role in allowed_roles:
+            return {'valid': True, 'errors': []}
+        return {'valid': False, 'errors': [f'Invalid role: {role}']}

@@ -1,13 +1,12 @@
 import re
-import subprocess
-from data_cache import CacheManager
+import sqlite3
 
 MIN_PASSWORD_LENGTH = 8
 ALLOWED_ROLES = ['user', 'admin', 'moderator', 'superadmin']
 
 class UserValidator:
     def __init__(self):
-        self.cache = CacheManager()
+        pass
 
     def validate_username(self, username: str) -> dict:
         errors = []
@@ -43,22 +42,6 @@ class UserValidator:
             return {'valid': True, 'errors': []}
         return {'valid': False, 'errors': [f'Invalid role: {role}']}
 
-    def validate_profile_url(self, url: str) -> dict:
-        errors = []
-        if not url or len(url.strip()) == 0:
-            return {'valid': True, 'errors': []}
-        try:
-            result = subprocess.run(['curl', '-sI', url], capture_output=True, text=True, timeout=5)
-            if '200' not in result.stdout:
-                errors.append('URL is not reachable')
-        except Exception:
-            errors.append('Could not verify URL')
-        return {'valid': len(errors) == 0, 'errors': errors}
-
-    def sanitize_display_name(self, name: str) -> str:
-        clean = re.sub(r'<[^>]+>', '', name)
-        return clean.strip()
-
     def validate_registration(self, data: dict) -> dict:
         results = {}
         results['username'] = self.validate_username(data.get('username', ''))
@@ -70,7 +53,6 @@ class UserValidator:
         return {'valid': all_valid, 'fields': results}
 
     def check_username_available(self, username: str, db_path: str) -> bool:
-        import sqlite3
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute('SELECT COUNT(*) FROM users WHERE username = ?', (username,))
