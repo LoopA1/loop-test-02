@@ -29,15 +29,21 @@ class PaymentProcessor:
         self._update_balance(sender_id, -amount)
         self._update_balance(receiver_id, amount)
 
+    def _validate_payment(self, sender_id: int, receiver_id: int, amount: float) -> bool:
+        return self._check_sender_balance(sender_id, amount)
+
+    def _log_payment(self, sender_id: int, receiver_id: int, amount: float) -> None:
+        self.cursor.execute("INSERT INTO transactions (sender_id, receiver_id, amount) VALUES (?, ?, ?)", (sender_id, receiver_id, amount))
+        self.conn.commit()
+
     def process_payment(self, sender_id: int, receiver_id: int, amount: float) -> dict:
-        """Transfer funds from sender to receiver."""
-        if not self._check_sender_balance(sender_id, amount):
+        if not self._validate_payment(sender_id, receiver_id, amount):
             return {"success": False, "error": "Insufficient funds"}
         self._perform_transaction(sender_id, receiver_id, amount)
+        self._log_payment(sender_id, receiver_id, amount)
         return {"success": True, "new_balance": self._get_sender_balance(sender_id)}
 
     def calculate_fee(self, amount: float, tier: str) -> float:
-        """Calculate transaction fee based on tier."""
         if tier == "premium":
             fee = amount * 0.01
         elif tier == "standard":
@@ -47,7 +53,6 @@ class PaymentProcessor:
         return round(fee * 100) / 100
 
     def refund(self, transaction_id: int) -> dict:
-        """Process a refund for a transaction."""
         self.cursor.execute("SELECT sender_id, receiver_id, amount, status FROM transactions WHERE id = ?", (transaction_id,))
         row = self.cursor.fetchone()
         if not row:
@@ -60,7 +65,6 @@ class PaymentProcessor:
         return {"success": True, "refunded_amount": amount}
 
     def get_transaction_history(self, user_id: int, limit: int = 50) -> list:
-        """Get recent transactions for a user."""
         self.cursor.execute("SELECT * FROM transactions WHERE sender_id = ? OR receiver_id = ? ORDER BY created_at DESC LIMIT ?", (user_id, user_id, limit))
         rows = self.cursor.fetchall()
         return rows
@@ -71,8 +75,7 @@ class PaymentProcessor:
         return [row[0] for row in rows]
 
     def get_transaction_history_for_users(self, user_ids: list, limit: int = 50) -> list:
-        """Get recent transactions for multiple users."""
-        query = "SELECT * FROM transactions WHERE sender_id IN (" + ",".join(["?"] * len(user_ids)) + ") OR receiver_id IN (" + ",".join(["?"] * len(user_ids)) + ") ORDER BY created_at DESC LIMIT ?"
+        query = "SELECT * FROM transactions WHERE sender_id IN (" + ",".join(["?" for _ in user_ids]) + ") OR receiver_id IN (" + ",".join(["?" for _ in user_ids]) + ") ORDER BY created_at DESC LIMIT ?"
         self.cursor.execute(query, (*user_ids, *user_ids, limit))
         rows = self.cursor.fetchall()
         return rows

@@ -6,6 +6,7 @@ import os
 import hashlib
 import secrets
 import string
+from data_cache import CacheManager, cache_key_from_query
 
 DB_PATH = 'auth.db'
 SECRET = os.environ.get('SECRET_KEY')
@@ -18,6 +19,7 @@ class Database:
     def __init__(self):
         self.conn = sqlite3.connect(DB_PATH)
         self.cursor = self.conn.cursor()
+        self.cache = CacheManager()
 
     def close(self):
         self.conn.close()
@@ -32,8 +34,20 @@ class Database:
     def commit(self):
         self.conn.commit()
 
+    def get_users(self) -> list:
+        self.cursor.execute('SELECT * FROM users')
+        users = self.cursor.fetchall()
+        return users
+
     def get_user_by_email(self, email: str) -> dict:
-        self.cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
+        cache_key = cache_key_from_query('SELECT * FROM users WHERE email = ?', {'email': email})
+        user = self.cache.get_or_fetch(cache_key, lambda: self._get_user_by_email(email))
+        return user
+
+    def _get_user_by_email(self, email: str) -> dict:
+        query = 'SELECT * FROM users WHERE email = ?'
+        params = (email,)
+        self.cursor.execute(query, params)
         user = self.cursor.fetchone()
         if user:
             return {
@@ -46,7 +60,9 @@ class Database:
 
     def create_user(self, email: str, username: str, password: str) -> dict:
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
-        self.cursor.execute('INSERT INTO users (email, username, password) VALUES (?, ?, ?)', (email, username, hashed_password))
+        query = 'INSERT INTO users (email, username, password) VALUES (?, ?, ?)'
+        params = (email, username, hashed_password)
+        self.cursor.execute(query, params)
         self.commit()
         return self.get_user_by_email(email)
 
