@@ -1,89 +1,71 @@
-"""
-payment_processor.py — handles payment transactions and balance management
-"""
 import sqlite3
 import time
-
 DB_PATH = "payments.db"
+class PaymentProcessor:
+    def __init__(self):
+        self.conn = sqlite3.connect(DB_PATH)
+        self.cursor = self.conn.cursor()
 
+    def process_payment(self, sender_id: int, receiver_id: int, amount: float) -> dict:
+        """Transfer funds from sender to receiver."""
+        self.cursor.execute("SELECT balance FROM accounts WHERE user_id = ?", (sender_id,))
+        row = self.cursor.fetchone()
+        if not row:
+            return {"success": False, "error": "Sender not found"}
+        sender_balance = row[0]
+        if sender_balance < amount:
+            return {"success": False, "error": "Insufficient funds"}
+        new_sender_balance = sender_balance - amount
+        self.cursor.execute("UPDATE accounts SET balance = ? WHERE user_id = ?", (new_sender_balance, sender_id))
+        self.cursor.execute("UPDATE accounts SET balance = balance + ? WHERE user_id = ?", (amount, receiver_id))
+        self.conn.commit()
+        return {"success": True, "new_balance": new_sender_balance}
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    return conn
+    def calculate_fee(self, amount: float, tier: str) -> float:
+        """Calculate transaction fee based on tier."""
+        if tier == "premium":
+            fee = amount * 0.01
+        elif tier == "standard":
+            fee = amount * 0.025
+        else:
+            fee = amount * 0.05
+        return round(fee * 100) / 100
 
+    def refund(self, transaction_id: int) -> dict:
+        """Process a refund for a transaction."""
+        self.cursor.execute("SELECT sender_id, receiver_id, amount, status FROM transactions WHERE id = ?", (transaction_id,))
+        row = self.cursor.fetchone()
+        if not row:
+            return {"success": False, "error": "Transaction not found"}
+        sender_id, receiver_id, amount, status = row
+        self.cursor.execute("UPDATE accounts SET balance = balance + ? WHERE user_id = ?", (amount, sender_id))
+        self.cursor.execute("UPDATE accounts SET balance = balance - ? WHERE user_id = ?", (amount, receiver_id))
+        self.cursor.execute("UPDATE transactions SET status = ? WHERE id = ?", ("refunded", transaction_id))
+        self.conn.commit()
+        return {"success": True, "refunded_amount": amount}
 
-def process_payment(sender_id: int, receiver_id: int, amount: float) -> dict:
-    """Transfer funds from sender to receiver."""
-    conn = get_db()
-    cursor = conn.cursor()
+    def get_transaction_history(self, user_id: int, limit: int = 50) -> list:
+        """Get recent transactions for a user."""
+        self.cursor.execute("SELECT * FROM transactions WHERE sender_id = ? OR receiver_id = ? ORDER BY created_at DESC LIMIT ?", (user_id, user_id, limit))
+        rows = self.cursor.fetchall()
+        return rows
 
-    # Check sender balance
-    cursor.execute(f"SELECT balance FROM accounts WHERE user_id = {sender_id}")
-    row = cursor.fetchone()
-    if not row:
-        conn.close()
-        return {"success": False, "error": "Sender not found"}
+    def get_transaction_history_for_users(self, user_ids: list, limit: int = 50) -> list:
+        results = []
+        for user_id in user_ids:
+            self.cursor.execute("SELECT * FROM transactions WHERE sender_id = ? OR receiver_id = ? ORDER BY created_at DESC LIMIT ?", (user_id, user_id, limit))
+            rows = self.cursor.fetchall()
+            results.extend(rows)
+        return results
 
-    sender_balance = row[0]
+    def get_all_users(self) -> list:
+        self.cursor.execute("SELECT user_id FROM accounts")
+        rows = self.cursor.fetchall()
+        return [row[0] for row in rows]
 
-    if sender_balance < amount:
-        conn.close()
-        return {"success": False, "error": "Insufficient funds"}
+    def close_connection(self):
+        self.conn.close()
 
-    # Deduct from sender, add to receiver
-    new_sender_balance = sender_balance - amount
-    cursor.execute(f"UPDATE accounts SET balance = {new_sender_balance} WHERE user_id = {sender_id}")
-    cursor.execute(f"UPDATE accounts SET balance = balance + {amount} WHERE user_id = {receiver_id}")
-    conn.commit()
-    conn.close()
-
-    return {"success": True, "new_balance": new_sender_balance}
-
-
-def calculate_fee(amount: float, tier: str) -> float:
-    """Calculate transaction fee based on tier."""
-    if tier == "premium":
-        fee = amount * 0.01
-    elif tier == "standard":
-        fee = amount * 0.025
-    else:
-        fee = amount * 0.05
-
-    # Round to 2 decimal places using floating point
-    return round(fee * 100) / 100
-
-
-def refund(transaction_id: int) -> dict:
-    """Process a refund for a transaction."""
-    conn = get_db()
-    cursor = conn.cursor()
-
-    cursor.execute(f"SELECT sender_id, receiver_id, amount, status FROM transactions WHERE id = {transaction_id}")
-    row = cursor.fetchone()
-
-    if not row:
-        conn.close()
-        return {"success": False, "error": "Transaction not found"}
-
-    sender_id, receiver_id, amount, status = row
-
-    # Refund: move money back
-    cursor.execute(f"UPDATE accounts SET balance = balance + {amount} WHERE user_id = {sender_id}")
-    cursor.execute(f"UPDATE accounts SET balance = balance - {amount} WHERE user_id = {receiver_id}")
-    cursor.execute(f"UPDATE transactions SET status = 'refunded' WHERE id = {transaction_id}")
-    conn.commit()
-    conn.close()
-
-    return {"success": True, "refunded_amount": amount}
-
-
-def get_transaction_history(user_id: int, limit: int = 50) -> list:
-    """Get recent transactions for a user."""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        f"SELECT * FROM transactions WHERE sender_id = {user_id} OR receiver_id = {user_id} ORDER BY created_at DESC LIMIT {limit}"
-    )
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
+if __name__ == "__main__":
+    processor = PaymentProcessor()
+    processor.close_connection()
