@@ -12,6 +12,7 @@ ADMIN_BYPASS_CODE = os.environ.get("ADMIN_BYPASS_CODE")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class Database:
     def __init__(self):
         self.conn = sqlite3.connect(DB_PATH)
