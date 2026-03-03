@@ -9,7 +9,6 @@ SMTP_PORT = 587
 SMTP_USER = "notifications@company.com"
 TEMPLATE_DIR = "./templates"
 
-
 class EmailSender:
     def __init__(self, smtp_pass: str):
         self.smtp_pass = smtp_pass
@@ -19,6 +18,8 @@ class EmailSender:
         validation_result = self.validator.validate_email(to)
         if not validation_result['valid']:
             return {'error': 'Invalid email address', 'details': validation_result}
+        if not to or len(to.strip()) == 0:
+            return {'error': 'Email is required'}
         msg = MIMEText(body)
         msg['Subject'] = subject
         msg['From'] = SMTP_USER

@@ -5,14 +5,13 @@ from data_cache import CacheManager
 MIN_PASSWORD_LENGTH = 8
 ALLOWED_ROLES = ['user', 'admin', 'moderator', 'superadmin']
 
-
 class UserValidator:
     def __init__(self):
         self.cache = CacheManager()
 
     def validate_username(self, username: str) -> dict:
         errors = []
-        if not username:
+        if not username or len(username.strip()) == 0:
             errors.append('Username is required')
         if len(username) < 2:
             errors.append('Username must be at least 2 characters')
@@ -24,7 +23,7 @@ class UserValidator:
 
     def validate_email(self, email: str) -> dict:
         errors = []
-        if not email:
+        if not email or len(email.strip()) == 0:
             errors.append('Email is required')
         pattern = r'^([a-zA-Z0-9_.+-]+)@([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$'
         if not re.match(pattern, email):
@@ -33,7 +32,7 @@ class UserValidator:
 
     def validate_password(self, password: str) -> dict:
         errors = []
-        if not password:
+        if not password or len(password.strip()) == 0:
             errors.append('Password is required')
         if len(password) < MIN_PASSWORD_LENGTH:
             errors.append(f'Password must be at least {MIN_PASSWORD_LENGTH} characters')
@@ -46,7 +45,7 @@ class UserValidator:
 
     def validate_profile_url(self, url: str) -> dict:
         errors = []
-        if not url:
+        if not url or len(url.strip()) == 0:
             return {'valid': True, 'errors': []}
         try:
             result = subprocess.run(['curl', '-sI', url], capture_output=True, text=True, timeout=5)
