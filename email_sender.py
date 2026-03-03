@@ -2,17 +2,15 @@ import smtplib
 import json
 import os
 from email.mime.text import MIMEText
-
 SMTP_HOST = "smtp.company.internal"
 SMTP_PORT = 587
 SMTP_USER = "notifications@company.com"
-SMTP_PASS = "email_pass_2024!"
 TEMPLATE_DIR = "./templates"
 
 class EmailSender:
-    def __init__(self):
-        pass
-
+    def __init__(self, smtp_pass: str):
+        self.smtp_pass = smtp_pass
+    
     def send_email(self, to: str, subject: str, body: str) -> dict:
         """Send a plain-text email."""
         msg = MIMEText(body)
@@ -21,7 +19,7 @@ class EmailSender:
         msg["To"] = to
         try:
             server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
-            server.login(SMTP_USER, SMTP_PASS)
+            server.login(SMTP_USER, self.smtp_pass)
             server.sendmail(SMTP_USER, to, msg.as_string())
             server.quit()
             return {"success": True, "to": to}
