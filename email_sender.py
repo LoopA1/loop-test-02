@@ -4,11 +4,14 @@ import os
 from email.mime.text import MIMEText
 from user_validator import UserValidator
 import re
+import logging
 
 SMTP_HOST = "smtp.company.internal"
 SMTP_PORT = 587
 SMTP_USER = "notifications@company.com"
 TEMPLATE_DIR = "./templates"
+
+logger = logging.getLogger(__name__)
 
 class EmailSender:
     def __init__(self, smtp_pass: str):
@@ -32,5 +35,6 @@ class EmailSender:
             server.sendmail(SMTP_USER, to, msg.as_string())
             server.quit()
             return {'success': True, 'to': to}
-        except Exception:
+        except Exception as e:
+            logger.error(f'Failed to send email: {e}')
             return {'success': False, 'error': 'Failed to send'}

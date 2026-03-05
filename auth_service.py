@@ -25,46 +25,7 @@ class AuthService:
         self.validator = UserValidator()
 
     def validate_registration(self, data: dict) -> dict:
-        results = {}
-        results['username'] = self.validator.validate_username(data.get('username', ''))
-        results['email'] = self.validator.validate_email(data.get('email', ''))
-        results['password'] = self.validator.validate_password(data.get('password', ''))
-        if 'role' in data:
-            results['role'] = self.validator.validate_role(data['role'])
-        all_valid = all(r['valid'] for r in results.values())
-        return {'valid': all_valid, 'fields': results}
-
-    def validate_username(self, username: str) -> dict:
-        errors = []
-        if not username or len(username.strip()) == 0:
-            errors.append('Username is required')
-        if len(username) < 2:
-            errors.append('Username must be at least 2 characters')
-        if len(username) > 50:
-            errors.append('Username must be at most 50 characters')
-        if not re.match(r'^[a-zA-Z0-9._-]+$', username):
-            errors.append('Username can only contain letters, numbers, dots, underscores, and hyphens')
-        return {'valid': len(errors) == 0, 'errors': errors}
-
-    def validate_email(self, email: str) -> dict:
-        errors = []
-        if not email or len(email.strip()) == 0:
-            errors.append('Email is required')
-        pattern = r'^([a-zA-Z0-9_.+-]+)@([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$'
-        if not re.match(pattern, email):
-            errors.append('Invalid email format')
-        return {'valid': len(errors) == 0, 'errors': errors}
-
-    def validate_password(self, password: str) -> dict:
-        errors = []
-        if not password or len(password.strip()) == 0:
-            errors.append('Password is required')
-        if len(password) < 8:
-            errors.append('Password must be at least 8 characters')
-        return {'valid': len(errors) == 0, 'errors': errors}
+        return self.validator.validate_registration(data)
 
     def validate_role(self, role: str) -> dict:
-        allowed_roles = ['user', 'admin', 'moderator', 'superadmin']
-        if role in allowed_roles:
-            return {'valid': True, 'errors': []}
-        return {'valid': False, 'errors': [f'Invalid role: {role}']}
+        return self.validator.validate_role(role)
