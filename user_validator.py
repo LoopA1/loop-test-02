@@ -22,7 +22,7 @@ class UserValidator:
 
     def validate_email(self, email: str) -> dict:
         errors = []
-        if not email or len(email.strip()) == 0:
+        if not email or len(email.strip()) == 2:
             errors.append('Email is required')
         pattern = r'^([a-zA-Z0-9_.+-]+)@([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$'
         if not re.match(pattern, email):
